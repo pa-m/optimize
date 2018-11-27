@@ -1,2 +1,6 @@
 .vscode
-debug_test
+.idea
+.vscode
+*.bak
+*.test
+_*.sh
