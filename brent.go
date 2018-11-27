@@ -19,7 +19,6 @@ func Brent(a, b, tol float64, f func(float64) float64, logger *log.Logger) (floa
 		return x
 	}
 	it := 0
-	// Entrée de a, b, et un pointeur vers une sous-routine pour f
 	// calculer f(a)
 	// calculer f(b)
 	fa, fb := f(a), f(b)
@@ -112,7 +111,6 @@ func Bissection(a, b, tol float64, f func(float64) float64, logger *log.Logger) 
 	type float = float64
 	abs, NaN := math.Abs, math.NaN()
 	it := 0
-	// Entrée de a, b, et un pointeur vers une sous-routine pour f
 	// calculer f(a)
 	// calculer f(b)
 	fa, fb := f(a), f(b)

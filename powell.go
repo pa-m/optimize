@@ -184,7 +184,7 @@ func minimizePowell(
 	return x
 }
 
-// Line-search algorithm using fminbound. Find the minimium of the function ``func(x0+ alpha*direc)``.
+// Line-search algorithm using fminbound. Find the minimum of the function ``func(x0+ alpha*direc)``.
 func linesearchPowell(
 	fun func([]float64) float64,
 	p, xi []float64,
