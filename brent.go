@@ -8,6 +8,7 @@ import (
 
 // Brent find zero of f using Brent's method
 // see https://en.wikipedia.org/wiki/Brent%27s_method
+// logger may be nil
 func Brent(a, b, tol float64, f func(float64) float64, logger *log.Logger) (float64, error) {
 	type float = float64
 	abs, NaN := math.Abs, math.NaN()
@@ -31,7 +32,7 @@ func Brent(a, b, tol float64, f func(float64) float64, logger *log.Logger) (floa
 	// répéter jusqu'à ce que f(b) = 0 ou |b − a| soit suffisamment petit (convergence)
 	for fb != 0 && abs(b-a) > tol {
 		if logger != nil {
-			logger.Printf("%d a,fa=%.5g, %.5g b,fb=%.5g,%.5g\n", it, a, fa, b, fb)
+			logger.Printf("%d a,fa=%9.6g, %9.6g b,fb=%9.6g,%9.6g\n", it, a, fa, b, fb)
 		}
 		it++
 		//     si f(a) ≠ f(c) et f(b) ≠ f(c) alors
@@ -90,6 +91,7 @@ func Brent(a, b, tol float64, f func(float64) float64, logger *log.Logger) (floa
 }
 
 // Bissection find zero of f using Bissection's method
+// logger may be nil
 func Bissection(a, b, tol float64, f func(float64) float64, logger *log.Logger) (float64, error) {
 	type float = float64
 	abs, NaN := math.Abs, math.NaN()
