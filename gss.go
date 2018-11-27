@@ -1,4 +1,4 @@
-package main
+package optimize
 
 import (
 	"log"
@@ -12,7 +12,7 @@ var (
 	nan     = math.NaN()
 )
 
-// GssRec golden section search (recursive version)
+// Gss golden section search (recursive version)
 // https://en.wikipedia.org/wiki/Golden-section_search
 // '''
 // Golden section search, recursive.

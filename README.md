@@ -1,2 +1,5 @@
-v https://fr.wikipedia.org/wiki/M%C3%A9thode_de_Brent
+# go-brent
 
+v https://en.wikipedia.org/wiki/Brent%27s_method
+
+this package implements Brent's method for zero and minimization, golden section search, powell's modified minimization

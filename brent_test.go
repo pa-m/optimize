@@ -1,4 +1,4 @@
-package main
+package optimize
 
 import (
 	"fmt"
@@ -44,11 +44,14 @@ func ExampleBissection() {
 	}
 	//On prend [a0; b0] = [−4; 4/3]
 	a, b := -4.0, 4./3.
-	xstar, err := Bissection(a, b, 1e-9, f, log.New(os.Stdout, "", 0))
+	_, err := Bissection(a, b, 1e-9, f, log.New(os.Stdout, "", 0))
 	if err != nil {
 		log.Fatal(err)
 	}
-	fmt.Printf("%.5g", xstar)
 	// Output:
-	// -3
+	// 0 a,fa=-4, -25 b,fb=1.3333,0.48148
+	// 1 a,fa=-4, -25 b,fb=-1.3333,9.0741
+	// 2 a,fa=-4, -25 b,fb=-2.6667,4.4815
+	// 3 a,fa=-3.3333, -6.2593 b,fb=-2.6667,4.4815
+	// 4 a,fa=-2.6667, 4.4815 b,fb=-3,0
 }
