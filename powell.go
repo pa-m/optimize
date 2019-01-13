@@ -199,9 +199,8 @@ func linesearchPowell(
 		}
 		return fun(xtmp)
 	}
-	b := newBrentMiner(myfunc, tol, 500)
-	b.optimize()
-	alphaMin, fret := b.Xmin, b.Fval
+
+	alphaMin, fret, _, _ := NewBrentMinimizer(myfunc, tol, 500).Optimize()
 	//xi = alpha_min*xi
 	//return squeeze(fret), p + xi, xi
 	pPlusXi := make([]float, len(p))
@@ -304,8 +303,8 @@ func (b bracketer) bracket(f func(float64) float64, xa0, xb0 float64) (xa, xb, x
 	return xa, xb, xc, fa, fb, fc, funcalls
 }
 
-// brentMinimizer is the translation of class Brent in scipy/optimize/optimize.py
-type brentMinimizer struct {
+// BrentMinimizer is the translation of class Brent in scipy/optimize/optimize.py
+type BrentMinimizer struct {
 	Func           func(float64) float64
 	Tol            float64
 	Maxiter        int
@@ -318,8 +317,9 @@ type brentMinimizer struct {
 	bracketer
 }
 
-func newBrentMiner(fun func(float64) float64, tol float64, maxiter int) *brentMinimizer {
-	return &brentMinimizer{
+// NewBrentMinimizer returns an initialized *BrentMinimizer
+func NewBrentMinimizer(fun func(float64) float64, tol float64, maxiter int) *BrentMinimizer {
+	return &BrentMinimizer{
 		Func:      fun,
 		Tol:       tol,
 		Maxiter:   maxiter,
@@ -328,11 +328,11 @@ func newBrentMiner(fun func(float64) float64, tol float64, maxiter int) *brentMi
 		bracketer: bracketer{growLimit: 110, maxIter: 1000},
 	}
 }
-func (bm *brentMinimizer) setBracket(brack []float64) {
+func (bm *BrentMinimizer) setBracket(brack []float64) {
 	bm.brack = make([]float64, len(brack))
 	copy(bm.brack, brack)
 }
-func (bm *brentMinimizer) getBracketInfo() (float64, float64, float64, float64, float64, float64, int) {
+func (bm *BrentMinimizer) getBracketInfo() (float64, float64, float64, float64, float64, float64, int) {
 	fun := bm.Func
 	brack := bm.brack
 	var xa, xb, xc float64
@@ -357,11 +357,10 @@ func (bm *brentMinimizer) getBracketInfo() (float64, float64, float64, float64, 
 	return xa, xb, xc, fa, fb, fc, funcalls
 }
 
-func (bm *brentMinimizer) optimize() {
-	var (
-		xa, xb, xc, fb, _mintol, _cg, x, fx, v, fv, w, fw, a, b, deltax, tol1, tol2, xmid, rat, tmp1, tmp2, p, dxTemp, u, fu float64
-		funcalls, iter                                                                                                       int
-	)
+// Optimize search the value of X minimizing bm.Func
+func (bm *BrentMinimizer) Optimize() (x, fx float64, iter, funcalls int) {
+	var xa, xb, xc, fb, _mintol, _cg, v, fv, w, fw, a, b, deltax, tol1, tol2, xmid, rat, tmp1, tmp2, p, dxTemp, u, fu float64
+
 	//# set up for optimization
 	f := bm.Func
 	xa, xb, xc, _, fb, _, funcalls = bm.getBracketInfo()
@@ -481,4 +480,5 @@ func (bm *brentMinimizer) optimize() {
 	// #END CORE ALGORITHM
 	// #################################
 	bm.Xmin, bm.Fval, bm.Iter, bm.Funcalls = x, fx, iter, funcalls
+	return
 }
