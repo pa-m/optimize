@@ -43,21 +43,10 @@ import (
 	"gonum.org/v1/gonum/stat/distmv"
 )
 
-// Task ...
-type Task = optimize.Task
-
-// resize takes x and returns a slice of length dim. It returns a resliced x
-// if cap(x) >= dim, and a new slice otherwise.
-func resize(x []float64, dim int) []float64 {
-	if dim > cap(x) {
-		return make([]float64, dim)
-	}
-	return x[:dim]
-}
-
 // CmaEsCholB is optimize.CmaEsChol with xmin,xmax constraints
 // only sendTask,ensureBounds are different
 type CmaEsCholB struct {
+	//optimize.CmaEsChol
 	// InitStepSize sets the initial size of the covariance matrix adaptation.
 	// If InitStepSize is 0, a default value of 0.5 is used. InitStepSize cannot
 	// be negative, or CmaEsCholB will panic.
@@ -114,7 +103,7 @@ type CmaEsCholB struct {
 	// Synchronization.
 	sentIdx     int
 	receivedIdx int
-	operation   chan<- Task
+	operation   chan<- optimize.Task
 	updateErr   error
 }
 
@@ -249,7 +238,7 @@ func min(a, b int) int {
 	return b
 }
 
-func (cma *CmaEsCholB) sendInitTasks(tasks []Task) {
+func (cma *CmaEsCholB) sendInitTasks(tasks []optimize.Task) {
 	for i, task := range tasks {
 		cma.sendTask(i, task)
 	}
@@ -287,7 +276,7 @@ func (cma *CmaEsCholB) ensureBounds(x []float64) {
 
 // sendTask generates a sample and sends the task. It does not update the cma index.
 // this method differs of original cmaes in using ensureBounds
-func (cma *CmaEsCholB) sendTask(idx int, task Task) {
+func (cma *CmaEsCholB) sendTask(idx int, task optimize.Task) {
 	task.ID = idx
 	task.Op = optimize.FuncEvaluation
 	distmv.NormalRand(cma.xs.RawRowView(idx), cma.mean, &cma.chol, cma.Src)
@@ -316,7 +305,7 @@ func (cma *CmaEsCholB) bestIdx() int {
 
 // findBestAndUpdateTask finds the best task in the current list, updates the
 // new best overall, and then stores the best location into task.
-func (cma *CmaEsCholB) findBestAndUpdateTask(task Task) Task {
+func (cma *CmaEsCholB) findBestAndUpdateTask(task optimize.Task) optimize.Task {
 	// Find and update the best location.
 	// Don't use floats because there may be NaN values.
 	best := cma.bestIdx()
@@ -341,7 +330,7 @@ func (cma *CmaEsCholB) findBestAndUpdateTask(task Task) Task {
 }
 
 // Run ...
-func (cma *CmaEsCholB) Run(operations chan<- Task, results <-chan Task, tasks []Task) {
+func (cma *CmaEsCholB) Run(operations chan<- optimize.Task, results <-chan optimize.Task, tasks []optimize.Task) {
 	copy(cma.mean, tasks[0].X)
 	cma.operation = operations
 	// Send the initial tasks. We know there are at most as many tasks as elements

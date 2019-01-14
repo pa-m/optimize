@@ -1,42 +1,88 @@
+// Copyright ©2016 The Gonum Authors. All rights reserved.
+// Use of this source code is governed by a BSD-style
+// license that can be found in the LICENSE file.
+
 package optimize
 
-// Powell optimize.Method
-/*
-var (
-	_ optimize.Statuser = (*Powell)(nil)
-	_ optimize.Method   = (*Powell)(nil)
+import (
+	"math"
+
+	"gonum.org/v1/gonum/optimize"
 )
 
-// Powell optimize.Method
+// Powell is a global optimizer that evaluates the function at random
+// locations. Not a good optimizer, but useful for comparison and debugging.
 type Powell struct {
-	status optimize.Status
-	err    error
+	bestF float64
+	bestX []float64
 }
 
-// Needs for Powell
-func (m *Powell) Needs() struct{ Gradient, Hessian bool } {
+func (g *Powell) Needs() struct{ Gradient, Hessian bool } {
 	return struct{ Gradient, Hessian bool }{false, false}
 }
 
-// Status for Powell
-func (m *Powell) Status() (optimize.Status, error) {
-	var s optimize.Status
-	return s, nil
+func (g *Powell) Init(dim, tasks int) int {
+	if dim <= 0 {
+		panic(nonpositiveDimension)
+	}
+	if tasks < 0 {
+		panic(negativeTasks)
+	}
+	g.bestF = math.Inf(1)
+	g.bestX = resize(g.bestX, dim)
+	return tasks
 }
 
-// Init for Powell
-func (m *Powell) Init(dim, tasks int) int {
-	m.status = optimize.NotTerminated
-	m.err = nil
-	return 0
+func (g *Powell) sendNewLoc(operation chan<- optimize.Task, task optimize.Task) {
+	// TODO set task X
+	task.Op = optimize.FuncEvaluation
+	operation <- task
 }
 
-// Run for Powell
-func (m *Powell) Run(operations chan<- optimize.Task, results <-chan optimize.Task, tasks []optimize.Task) {
-	for task := range results {
+func (g *Powell) updateMajor(operation chan<- optimize.Task, task optimize.Task) {
+	// Update the best value seen so far, and send a MajorIteration.
+	if task.F < g.bestF {
+		g.bestF = task.F
+		copy(g.bestX, task.X)
+	} else {
+		task.F = g.bestF
+		copy(task.X, g.bestX)
+	}
+	task.Op = optimize.MajorIteration
+	operation <- task
+}
+
+func (g *Powell) Run(operation chan<- optimize.Task, result <-chan optimize.Task, tasks []optimize.Task) {
+	// Send initial tasks to evaluate
+	for _, task := range tasks {
+		g.sendNewLoc(operation, task)
+	}
+
+	// Read from the channel until PostIteration is sent.
+Loop:
+	for {
+		task := <-result
 		switch task.Op {
+		default:
+			panic("unknown operation")
+		case optimize.PostIteration:
+			break Loop
+		case optimize.MajorIteration:
+			g.sendNewLoc(operation, task)
+		case optimize.FuncEvaluation:
+			g.updateMajor(operation, task)
 		}
 	}
-	close(operations)
+
+	// PostIteration was sent. Update the best new values.
+	for task := range result {
+		switch task.Op {
+		default:
+			panic("unknown operation")
+		case optimize.MajorIteration:
+		case optimize.FuncEvaluation:
+			g.updateMajor(operation, task)
+		}
+	}
+	close(operation)
 }
-*/
