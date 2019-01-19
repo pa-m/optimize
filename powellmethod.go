@@ -13,14 +13,20 @@ import (
 // Powell is a global optimizer that evaluates the function at random
 // locations. Not a good optimizer, but useful for comparison and debugging.
 type Powell struct {
-	bestF float64
-	bestX []float64
+	PM       *PowellMinimizer
+	settings optimize.Settings
+	status   optimize.Status
+	err      error
+	bestF    float64
+	bestX    []float64
 }
 
+// Needs for Powell to implement gonum optimize.Needser
 func (g *Powell) Needs() struct{ Gradient, Hessian bool } {
 	return struct{ Gradient, Hessian bool }{false, false}
 }
 
+// Init for Powell to implement gonum optimize.Method
 func (g *Powell) Init(dim, tasks int) int {
 	if dim <= 0 {
 		panic(nonpositiveDimension)
@@ -30,13 +36,7 @@ func (g *Powell) Init(dim, tasks int) int {
 	}
 	g.bestF = math.Inf(1)
 	g.bestX = resize(g.bestX, dim)
-	return tasks
-}
-
-func (g *Powell) sendNewLoc(operation chan<- optimize.Task, task optimize.Task) {
-	// TODO set task X
-	task.Op = optimize.FuncEvaluation
-	operation <- task
+	return 1
 }
 
 func (g *Powell) updateMajor(operation chan<- optimize.Task, task optimize.Task) {
@@ -44,19 +44,63 @@ func (g *Powell) updateMajor(operation chan<- optimize.Task, task optimize.Task)
 	if task.F < g.bestF {
 		g.bestF = task.F
 		copy(g.bestX, task.X)
-	} else {
-		task.F = g.bestF
-		copy(task.X, g.bestX)
 	}
 	task.Op = optimize.MajorIteration
 	operation <- task
 }
 
+// Run for Powell to implement gonum optimize.Method
 func (g *Powell) Run(operation chan<- optimize.Task, result <-chan optimize.Task, tasks []optimize.Task) {
-	// Send initial tasks to evaluate
-	for _, task := range tasks {
-		g.sendNewLoc(operation, task)
+	var stop bool
+	fnMaxIter := func(int) bool { return stop }
+	fnMaxFev := func(int) bool { return stop }
+
+	if g.PM == nil {
+		g.PM = NewPowellMinimizer()
 	}
+	pm := g.PM
+
+	result1 := make(chan optimize.Task)
+	// Send initial tasks to evaluate
+
+	dup := func(x []float64) []float64 {
+		r := make([]float64, len(x))
+		copy(r, x)
+		return r
+	}
+	InitX := tasks[0].Location.X
+	go func(id int) {
+		_, warnflag := minimizePowell(func(x []float64) (y float64) {
+			y = math.NaN()
+			defer func() {
+				if r := recover(); r == "send on closed channel" {
+					return
+				}
+			}()
+			operation <- optimize.Task{ID: id, Op: optimize.FuncEvaluation, Location: &optimize.Location{X: dup(x)}}
+			task := <-result1
+			if task.Location != nil {
+				y = task.Location.F
+			}
+			return
+		}, InitX, nil, pm.Xtol, pm.Ftol, fnMaxIter, fnMaxFev, pm.Logger)
+		switch warnflag {
+		case 1:
+			g.status = optimize.FunctionEvaluationLimit
+		case 2:
+			g.status = optimize.IterationLimit
+		default:
+			g.status = optimize.MethodConverge
+		}
+
+		defer func() {
+			if r := recover(); r == "send on closed channel" {
+				return
+			}
+		}()
+		operation <- optimize.Task{ID: id, Op: optimize.MethodDone}
+
+	}(0)
 
 	// Read from the channel until PostIteration is sent.
 Loop:
@@ -65,11 +109,13 @@ Loop:
 		switch task.Op {
 		default:
 			panic("unknown operation")
-		case optimize.PostIteration:
+		case optimize.NoOperation, optimize.PostIteration:
+			close(result1)
 			break Loop
 		case optimize.MajorIteration:
-			g.sendNewLoc(operation, task)
+
 		case optimize.FuncEvaluation:
+			result1 <- task
 			g.updateMajor(operation, task)
 		}
 	}
@@ -82,7 +128,14 @@ Loop:
 		case optimize.MajorIteration:
 		case optimize.FuncEvaluation:
 			g.updateMajor(operation, task)
+		case optimize.NoOperation:
 		}
 	}
+	stop = true
 	close(operation)
+}
+
+// Status ...
+func (g *Powell) Status() (optimize.Status, error) {
+	return g.status, g.err
 }

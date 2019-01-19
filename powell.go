@@ -22,7 +22,30 @@ func NewPowellMinimizer() (pm *PowellMinimizer) {
 
 // Minimize minimizes f starting at x0
 func (pm *PowellMinimizer) Minimize(f func([]float64) float64, x0 []float64) {
-	minimizePowell(f, x0, pm.Callback, pm.Xtol, pm.Ftol, pm.MaxIter, pm.MaxFev, pm.Logger)
+
+	//# If neither are set, then set both to default
+	N := len(x0)
+	if pm.MaxIter <= 0 && pm.MaxFev <= 0 {
+		pm.MaxIter = N * 1000
+		pm.MaxFev = N * 1000
+	} else if pm.MaxIter <= 0 {
+		// # Convert remaining Nones, to np.inf, unless the other is np.inf, in
+		// # which case use the default to avoid unbounded iteration
+		if pm.MaxFev == math.MaxInt64 {
+			pm.MaxIter = N * 1000
+		} else {
+			pm.MaxIter = math.MaxInt64
+		}
+	} else if pm.MaxFev <= 0 {
+		if pm.MaxIter == math.MaxInt64 {
+			pm.MaxFev = N * 1000
+		} else {
+			pm.MaxFev = math.MaxInt64
+		}
+	}
+	fnMaxIter := func(iter int) bool { return iter >= pm.MaxIter }
+	fnMaxFev := func(fcalls int) bool { return fcalls >= pm.MaxFev }
+	minimizePowell(f, x0, pm.Callback, pm.Xtol, pm.Ftol, fnMaxIter, fnMaxFev, pm.Logger)
 }
 
 // Minimization of scalar function of one or more variables using the
@@ -44,10 +67,12 @@ func (pm *PowellMinimizer) Minimize(f func([]float64) float64, x0 []float64) {
 // direc : ndarray
 //     Initial set of direction vectors for the Powell method.
 func minimizePowell(
-	f func([]float64) float64, x0 []float64, callback func([]float64),
+	f func([]float64) float64,
+	x0 []float64,
+	callback func([]float64),
 	xtol, ftol float64,
-	maxiter, maxfev int,
-	disp *log.Logger) []float64 {
+	fnMaxIter func(int) bool, fnMaxFev func(int) bool,
+	disp *log.Logger) ([]float64, int) {
 	type float = float64
 	var (
 		fval, fx, delta, fx2, bnd, t, temp float
@@ -60,6 +85,12 @@ func minimizePowell(
 		}
 		return x
 	}
+	if fnMaxIter == nil {
+		fnMaxIter = func(int) bool { return false }
+	}
+	if fnMaxFev == nil {
+		fnMaxIter = func(int) bool { return false }
+	}
 	// # we need to use a mutable object here that we can update in the
 	// # wrapper function
 	fcalls := 0
@@ -68,27 +99,14 @@ func minimizePowell(
 		fcalls++
 		return y
 	}
-	x := make([]float64, len(x0))
-	N := len(x)
-	//# If neither are set, then set both to default
-	if maxiter <= 0 && maxfev <= 0 {
-		maxiter = N * 1000
-		maxfev = N * 1000
-	} else if maxiter <= 0 {
-		// # Convert remaining Nones, to np.inf, unless the other is np.inf, in
-		// # which case use the default to avoid unbounded iteration
-		if maxfev == math.MaxInt64 {
-			maxiter = N * 1000
-		} else {
-			maxiter = math.MaxInt64
-		}
-	} else if maxfev <= 0 {
-		if maxiter == math.MaxInt64 {
-			maxfev = N * 1000
-		} else {
-			maxfev = math.MaxInt64
-		}
+	fnMaxFevSub := func(funcalls int) bool { return fnMaxFev(fcalls + funcalls) }
+	if callback == nil {
+		callback = func(x []float64) {}
 	}
+	N := len(x0)
+	x := make([]float64, N)
+	copy(x, x0)
+
 	// direc is used as a matrix direc[i,j]:=direc[i*N+j]
 	direc = make([]float, N*N)
 	direc1 = make([]float, N)
@@ -111,24 +129,22 @@ func minimizePowell(
 		for _, i := range ilist {
 			direc1 = direc[i*N : i*N+N]
 			fx2 = fval
-			fval, x, direc1 = linesearchPowell(fun, x, direc1, xtol*100)
+			fval, x, direc1 = linesearchPowell(fun, x, direc1, xtol*100, fnMaxFevSub)
 			if (fx2 - fval) > delta {
 				delta = fx2 - fval
 				bigind = i
 			}
 		}
 		iter++
-		if callback != nil {
-			callback(x)
-		}
+		callback(x)
 		bnd = ftol*(abs(fx)+abs(fval)) + 1e-20
 		if 2.0*(fx-fval) <= bnd {
 			break
 		}
-		if fcalls >= maxfev {
+		if fnMaxFev(fcalls) {
 			break
 		}
-		if iter >= maxiter {
+		if fnMaxIter(iter) {
 			break
 		}
 		//# Construct the extrapolated point
@@ -149,7 +165,7 @@ func minimizePowell(
 			temp = fx - fx2
 			t -= delta * temp * temp
 			if t < 0.0 {
-				fval, x, direc1 = linesearchPowell(fun, x, direc1, xtol*100)
+				fval, x, direc1 = linesearchPowell(fun, x, direc1, xtol*100, fnMaxFevSub)
 				//direc[bigind] = direc[-1]
 				copy(direc[bigind*N:bigind*N+N], direc[(N-1)*N:N*N])
 				//direc[-1] = direc1
@@ -159,14 +175,16 @@ func minimizePowell(
 
 	}
 	warnflag = 0
-	if fcalls >= maxfev {
+	if fnMaxFev(fcalls) {
+		// FunctionEvaluationLimit
 		warnflag = 1
 		//msg = _status_message['maxfev']
 		msg := "maxfev"
 		if disp != nil {
 			disp.Println("Warning: " + msg)
 		}
-	} else if iter >= maxiter {
+	} else if fnMaxIter(iter) {
+		// IterationLimit
 		warnflag = 2
 		//msg = _status_message['maxiter']
 		msg := "maxiter"
@@ -174,21 +192,22 @@ func minimizePowell(
 			disp.Println("Warning: " + msg)
 		}
 	} else {
+		// Success,MethodConverge ?
 		//msg = _status_message['success']
 		if disp != nil {
 			disp.Printf("Success. Current function value: %.7g Iterations: %d Function evaluations: %d", fval, iter, fcalls)
 		}
 	}
-	//x = squeeze(x)
-	_ = warnflag
-	return x
+	return x, warnflag
 }
 
 // Line-search algorithm using fminbound. Find the minimum of the function ``func(x0+ alpha*direc)``.
 func linesearchPowell(
 	fun func([]float64) float64,
 	p, xi []float64,
-	tol float64) (float64, []float64, []float64) {
+	tol float64,
+	fnMaxFev func(int) bool,
+) (float64, []float64, []float64) {
 	type float = float64
 	myfunc := func(alpha float) float {
 
@@ -200,7 +219,7 @@ func linesearchPowell(
 		return fun(xtmp)
 	}
 
-	alphaMin, fret, _, _ := NewBrentMinimizer(myfunc, tol, 500).Optimize()
+	alphaMin, fret, _, _ := NewBrentMinimizer(myfunc, tol, 500, fnMaxFev).Optimize()
 	//xi = alpha_min*xi
 	//return squeeze(fret), p + xi, xi
 	pPlusXi := make([]float, len(p))
@@ -315,10 +334,11 @@ type BrentMinimizer struct {
 	Iter, Funcalls int
 	brack          []float64
 	bracketer
+	FnMaxFev func(int) bool
 }
 
 // NewBrentMinimizer returns an initialized *BrentMinimizer
-func NewBrentMinimizer(fun func(float64) float64, tol float64, maxiter int) *BrentMinimizer {
+func NewBrentMinimizer(fun func(float64) float64, tol float64, maxiter int, fnMaxFev func(int) bool) *BrentMinimizer {
 	return &BrentMinimizer{
 		Func:      fun,
 		Tol:       tol,
@@ -326,6 +346,7 @@ func NewBrentMinimizer(fun func(float64) float64, tol float64, maxiter int) *Bre
 		mintol:    1.0e-11,
 		cg:        0.3819660,
 		bracketer: bracketer{growLimit: 110, maxIter: 1000},
+		FnMaxFev:  fnMaxFev,
 	}
 }
 func (bm *BrentMinimizer) setBracket(brack []float64) {
@@ -360,9 +381,12 @@ func (bm *BrentMinimizer) getBracketInfo() (float64, float64, float64, float64, 
 // Optimize search the value of X minimizing bm.Func
 func (bm *BrentMinimizer) Optimize() (x, fx float64, iter, funcalls int) {
 	var xa, xb, xc, fb, _mintol, _cg, v, fv, w, fw, a, b, deltax, tol1, tol2, xmid, rat, tmp1, tmp2, p, dxTemp, u, fu float64
-
+	if bm.FnMaxFev == nil {
+		bm.FnMaxFev = func(int) bool { return false }
+	}
 	//# set up for optimization
 	f := bm.Func
+
 	xa, xb, xc, _, fb, _, funcalls = bm.getBracketInfo()
 	_mintol = bm.mintol
 	_cg = bm.cg
@@ -384,7 +408,7 @@ func (bm *BrentMinimizer) Optimize() (x, fx float64, iter, funcalls int) {
 	deltax = 0.0
 	funcalls++
 	iter = 0
-	for iter < bm.Maxiter {
+	for iter < bm.Maxiter && !bm.FnMaxFev(funcalls) {
 		tol1 = bm.Tol*math.Abs(x) + _mintol
 		tol2 = 2.0 * tol1
 		xmid = 0.5 * (a + b)
