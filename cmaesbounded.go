@@ -117,6 +117,11 @@ func (cma *CmaEsCholB) Needs() struct{ Gradient, Hessian bool } {
 	return struct{ Gradient, Hessian bool }{false, false}
 }
 
+// Uses ...
+func (cma *CmaEsCholB) Uses(has optimize.Available) (optimize.Available, error) {
+	return optimize.Available{}, nil
+}
+
 func (cma *CmaEsCholB) methodConverged() optimize.Status {
 	sd := cma.StopLogDet
 	switch {

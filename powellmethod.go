@@ -26,6 +26,11 @@ func (g *Powell) Needs() struct{ Gradient, Hessian bool } {
 	return struct{ Gradient, Hessian bool }{false, false}
 }
 
+// Uses for Powell to implement gonum optimize.Needser
+func (g *Powell) Uses(has optimize.Available) (optimize.Available, error) {
+	return optimize.Available{}, nil
+}
+
 // Init for Powell to implement gonum optimize.Method
 func (g *Powell) Init(dim, tasks int) int {
 	if dim <= 0 {
