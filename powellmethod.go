@@ -21,11 +21,6 @@ type Powell struct {
 	bestX    []float64
 }
 
-// Needs for Powell to implement gonum optimize.Needser
-func (g *Powell) Needs() struct{ Gradient, Hessian bool } {
-	return struct{ Gradient, Hessian bool }{false, false}
-}
-
 // Uses for Powell to implement gonum optimize.Needser
 func (g *Powell) Uses(has optimize.Available) (optimize.Available, error) {
 	return optimize.Available{}, nil

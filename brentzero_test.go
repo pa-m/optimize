@@ -46,7 +46,7 @@ func ExampleBissection() {
 	a, b := -4.0, 4./3.
 	_, err := Bissection(a, b, 1e-9, f, log.New(os.Stdout, "", 0))
 	if err != nil {
-		log.Fatal(err)
+		panic(err)
 	}
 	// Output:
 	// 0 a,fa=-4, -25 b,fb=1.3333,0.48148

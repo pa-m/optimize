@@ -3,6 +3,7 @@ package optimize
 import (
 	"fmt"
 	"math"
+	"testing"
 
 	"gonum.org/v1/gonum/optimize"
 )
@@ -24,4 +25,31 @@ func ExamplePowell_Run() {
 	fmt.Printf("%s %.5f\n", res.Status, res.X)
 	// Output:
 	// MethodConverge [-0.00033 -0.00317]
+}
+
+func panics(f func()) (panics bool) {
+	defer func() {
+		if r := recover(); r != nil {
+			panics = true
+		}
+	}()
+	f()
+	return
+}
+func TestPowell(t *testing.T) {
+	has := optimize.Available{}
+	m := &Powell{}
+	uses, err := m.Uses(has)
+	if err != nil {
+		t.Error(err)
+	}
+	if uses.Grad || uses.Hess {
+		t.Fail()
+	}
+	if !panics(func() { m.Init(0, 0) }) {
+		t.Fail()
+	}
+	if !panics(func() { m.Init(1, -1) }) {
+		t.Fail()
+	}
 }

@@ -147,10 +147,10 @@ func (cma *CmaEsCholB) Status() (optimize.Status, error) {
 // Init ...
 func (cma *CmaEsCholB) Init(dim, tasks int) int {
 	if dim <= 0 {
-		panic("nonpositiveDimension")
+		panic(nonpositiveDimension)
 	}
 	if tasks < 0 {
-		panic("negativeTasks")
+		panic(negativeTasks)
 	}
 
 	// Set fixed algorithm parameters.
