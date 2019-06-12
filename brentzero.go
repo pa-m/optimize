@@ -12,6 +12,7 @@ import (
 // logger may be nil
 func Brent(a, b, tol float64, f func(float64) float64, logger *log.Logger) (float64, error) {
 	type float = float64
+
 	abs := func(x float) float {
 		if x < 0 {
 			return -x
