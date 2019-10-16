@@ -6,7 +6,7 @@ import (
 
 type bracketer struct {
 	growLimit float64
-	maxIter   int
+	maxIter   int64
 }
 
 // Bracket the minimum of the function.
@@ -15,10 +15,10 @@ type bracketer struct {
 // new points xa, xb, xc that bracket the minimum of the function
 // f(xa) > f(xb) < f(xc). It doesn't always mean that obtained
 // solution will satisfy xa<=x<=xb
-func (b bracketer) bracket(f func(float64) float64, xa0, xb0 float64) (xa, xb, xc, fa, fb, fc float64, funcalls int) {
+func (b bracketer) bracket(f func(float64) float64, xa0, xb0 float64) (xa, xb, xc, fa, fb, fc float64, funcalls int64) {
 	var (
 		tmp1, tmp2, val, denom, w, wlim, fw float64
-		iter                                int
+		iter                                int64
 	)
 	_gold := 1.618034 //# golden ratio: (1.0+sqrt(5.0))/2.0
 	_verysmallNum := 1e-21
@@ -100,19 +100,19 @@ func (b bracketer) bracket(f func(float64) float64, xa0, xb0 float64) (xa, xb, x
 type BrentMinimizer struct {
 	Func           func(float64) float64
 	Tol            float64
-	Maxiter        int
+	Maxiter        int64
 	mintol         float64
 	cg             float64
 	Xmin           float64
 	Fval           float64
-	Iter, Funcalls int
+	Iter, Funcalls int64
 	Brack          []float64
 	bracketer
-	FnMaxFev func(int) bool
+	FnMaxFev func(int64) bool
 }
 
 // NewBrentMinimizer returns an initialized *BrentMinimizer
-func NewBrentMinimizer(fun func(float64) float64, tol float64, maxiter int, fnMaxFev func(int) bool) *BrentMinimizer {
+func NewBrentMinimizer(fun func(float64) float64, tol float64, maxiter int64, fnMaxFev func(int64) bool) *BrentMinimizer {
 	return &BrentMinimizer{
 		Func:      fun,
 		Tol:       tol,
@@ -129,12 +129,12 @@ func (bm *BrentMinimizer) SetBracket(brack []float64) {
 	bm.Brack = make([]float64, len(brack))
 	copy(bm.Brack, brack)
 }
-func (bm *BrentMinimizer) getBracketInfo() (float64, float64, float64, float64, float64, float64, int) {
+func (bm *BrentMinimizer) getBracketInfo() (float64, float64, float64, float64, float64, float64, int64) {
 	fun := bm.Func
 	brack := bm.Brack
 	var xa, xb, xc float64
 	var fa, fb, fc float64
-	var funcalls int
+	var funcalls int64
 	switch len(brack) {
 	case 0:
 		xa, xb, xc, fa, fb, fc, funcalls = bm.bracketer.bracket(fun, 0, 1)
@@ -155,10 +155,10 @@ func (bm *BrentMinimizer) getBracketInfo() (float64, float64, float64, float64, 
 }
 
 // Optimize search the value of X minimizing bm.Func
-func (bm *BrentMinimizer) Optimize() (x, fx float64, iter, funcalls int) {
+func (bm *BrentMinimizer) Optimize() (x, fx float64, iter int64, funcalls int64) {
 	var xa, xb, xc, fb, _mintol, _cg, v, fv, w, fw, a, b, deltax, tol1, tol2, xmid, rat, tmp1, tmp2, p, dxTemp, u, fu float64
 	if bm.FnMaxFev == nil {
-		bm.FnMaxFev = func(int) bool { return false }
+		bm.FnMaxFev = func(int64) bool { return false }
 	}
 	//# set up for optimization
 	f := bm.Func

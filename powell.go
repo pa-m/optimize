@@ -10,7 +10,7 @@ import (
 type PowellMinimizer struct {
 	Callback        func([]float64)
 	Xtol, Ftol      float64
-	MaxIter, MaxFev int
+	MaxIter, MaxFev int64
 	Logger          *log.Logger
 }
 
@@ -26,25 +26,25 @@ func (pm *PowellMinimizer) Minimize(f func([]float64) float64, x0 []float64) {
 	//# If neither are set, then set both to default
 	N := len(x0)
 	if pm.MaxIter <= 0 && pm.MaxFev <= 0 {
-		pm.MaxIter = N * 1000
-		pm.MaxFev = N * 1000
+		pm.MaxIter = int64(N * 1000)
+		pm.MaxFev = int64(N * 1000)
 	} else if pm.MaxIter <= 0 {
 		// # Convert remaining Nones, to np.inf, unless the other is np.inf, in
 		// # which case use the default to avoid unbounded iteration
 		if pm.MaxFev == math.MaxInt64 {
-			pm.MaxIter = N * 1000
+			pm.MaxIter = int64(N * 1000)
 		} else {
 			pm.MaxIter = math.MaxInt64
 		}
 	} else if pm.MaxFev <= 0 {
 		if pm.MaxIter == math.MaxInt64 {
-			pm.MaxFev = N * 1000
+			pm.MaxFev = int64(N * 1000)
 		} else {
 			pm.MaxFev = math.MaxInt64
 		}
 	}
-	fnMaxIter := func(iter int) bool { return iter >= pm.MaxIter }
-	fnMaxFev := func(fcalls int) bool { return fcalls >= pm.MaxFev }
+	fnMaxIter := func(iter int64) bool { return iter >= pm.MaxIter }
+	fnMaxFev := func(fcalls int64) bool { return fcalls >= pm.MaxFev }
 	minimizePowell(f, x0, pm.Callback, pm.Xtol, pm.Ftol, fnMaxIter, fnMaxFev, pm.Logger)
 }
 
@@ -71,7 +71,7 @@ func minimizePowell(
 	x0 []float64,
 	callback func([]float64),
 	xtol, ftol float64,
-	fnMaxIter func(int) bool, fnMaxFev func(int) bool,
+	fnMaxIter func(int64) bool, fnMaxFev func(int64) bool,
 	disp *log.Logger) ([]float64, int) {
 	type float = float64
 	var (
@@ -86,20 +86,21 @@ func minimizePowell(
 		return x
 	}
 	if fnMaxIter == nil {
-		fnMaxIter = func(int) bool { return false }
+		fnMaxIter = func(int64) bool { return false }
 	}
 	if fnMaxFev == nil {
-		fnMaxIter = func(int) bool { return false }
+		fnMaxIter = func(int64) bool { return false }
 	}
 	// # we need to use a mutable object here that we can update in the
 	// # wrapper function
-	fcalls := 0
+	var fcalls int64
+	fcalls = 0
 	fun := func(x []float) float {
 		y := f(x)
 		fcalls++
 		return y
 	}
-	fnMaxFevSub := func(funcalls int) bool { return fnMaxFev(fcalls + funcalls) }
+	fnMaxFevSub := func(funcalls int64) bool { return fnMaxFev(fcalls + funcalls) }
 	if callback == nil {
 		callback = func(x []float64) {}
 	}
@@ -117,7 +118,8 @@ func minimizePowell(
 	fval = fun(x)
 	x1, x2 = make([]float64, N), make([]float64, N)
 	copy(x1, x)
-	iter := 0
+	var iter int64
+	iter = 0
 	ilist := make([]int, N)
 	for i := range ilist {
 		ilist[i] = i
@@ -206,7 +208,7 @@ func linesearchPowell(
 	fun func([]float64) float64,
 	p, xi []float64,
 	tol float64,
-	fnMaxFev func(int) bool,
+	fnMaxFev func(int64) bool,
 ) (float64, []float64, []float64) {
 	type float = float64
 	myfunc := func(alpha float) float {

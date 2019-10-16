@@ -52,8 +52,8 @@ func (g *Powell) updateMajor(operation chan<- optimize.Task, task optimize.Task)
 // Run for Powell to implement gonum optimize.Method
 func (g *Powell) Run(operation chan<- optimize.Task, result <-chan optimize.Task, tasks []optimize.Task) {
 	var stop bool
-	fnMaxIter := func(int) bool { return stop }
-	fnMaxFev := func(int) bool { return stop }
+	fnMaxIter := func(int64) bool { return stop }
+	fnMaxFev := func(int64) bool { return stop }
 
 	if g.PM == nil {
 		g.PM = NewPowellMinimizer()
