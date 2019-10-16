@@ -7,8 +7,9 @@ import (
 func ExampleBrentMinimizer() {
 	f := func(x float64) float64 { return x * x }
 	tol := 1e-8
-	maxIter := 500
-	fnMaxFev := func(nfev int) bool { return nfev > 1500 }
+	var maxIter int64
+	maxIter = 500
+	fnMaxFev := func(nfev int64) bool { return nfev > 1500 }
 	bm := NewBrentMinimizer(f, tol, maxIter, fnMaxFev)
 	bm.Brack = []float64{1, 2}
 	x, fx, nIter, nFev := bm.Optimize()
