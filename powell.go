@@ -2,7 +2,6 @@ package optimize
 
 import (
 	"log"
-	"math"
 )
 
 // PowellMinimizer minimizes a scalar function of multidimensionnal x using modified Powell algorithm
@@ -22,7 +21,7 @@ func NewPowellMinimizer() (pm *PowellMinimizer) {
 
 // Minimize minimizes f starting at x0
 func (pm *PowellMinimizer) Minimize(f func([]float64) float64, x0 []float64) {
-
+	const MaxInt = (int)(^uint(0) >> 1)
 	//# If neither are set, then set both to default
 	N := len(x0)
 	if pm.MaxIter <= 0 && pm.MaxFev <= 0 {
@@ -31,16 +30,16 @@ func (pm *PowellMinimizer) Minimize(f func([]float64) float64, x0 []float64) {
 	} else if pm.MaxIter <= 0 {
 		// # Convert remaining Nones, to np.inf, unless the other is np.inf, in
 		// # which case use the default to avoid unbounded iteration
-		if pm.MaxFev == math.MaxInt64 {
+		if pm.MaxFev == MaxInt {
 			pm.MaxIter = N * 1000
 		} else {
-			pm.MaxIter = math.MaxInt64
+			pm.MaxIter = MaxInt
 		}
 	} else if pm.MaxFev <= 0 {
-		if pm.MaxIter == math.MaxInt64 {
+		if pm.MaxIter == MaxInt {
 			pm.MaxFev = N * 1000
 		} else {
-			pm.MaxFev = math.MaxInt64
+			pm.MaxFev = MaxInt
 		}
 	}
 	fnMaxIter := func(iter int) bool { return iter >= pm.MaxIter }
