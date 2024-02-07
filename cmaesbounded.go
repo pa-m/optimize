@@ -109,7 +109,7 @@ type CmaEsCholB struct {
 
 var (
 	_ optimize.Statuser = (*CmaEsCholB)(nil)
-	_ optimize.Method   = (*CmaEsCholB)(nil)
+	// _ optimize.Method   = (*CmaEsCholB)(nil)
 )
 
 // Needs ...
@@ -145,96 +145,96 @@ func (cma *CmaEsCholB) Status() (optimize.Status, error) {
 }
 
 // Init ...
-func (cma *CmaEsCholB) Init(dim, tasks int) int {
-	if dim <= 0 {
-		panic(nonpositiveDimension)
-	}
-	if tasks < 0 {
-		panic(negativeTasks)
-	}
+// func (cma *CmaEsCholB) Init(dim, tasks int) int {
+// 	if dim <= 0 {
+// 		panic(nonpositiveDimension)
+// 	}
+// 	if tasks < 0 {
+// 		panic(negativeTasks)
+// 	}
 
-	// Set fixed algorithm parameters.
-	// Parameter values are from https://arxiv.org/pdf/1604.00772.pdf .
-	cma.dim = dim
-	cma.pop = cma.Population
-	n := float64(dim)
-	if cma.pop == 0 {
-		cma.pop = 4 + int(3*math.Log(n)) // Note the implicit floor.
-	} else if cma.pop < 0 {
-		panic("cma-es-chol: negative population size")
-	}
-	mu := cma.pop / 2
-	cma.weights = resize(cma.weights, mu)
-	for i := range cma.weights {
-		v := math.Log(float64(mu)+0.5) - math.Log(float64(i)+1)
-		cma.weights[i] = v
-	}
-	floats.Scale(1/floats.Sum(cma.weights), cma.weights)
-	cma.muEff = 0
-	for _, v := range cma.weights {
-		cma.muEff += v * v
-	}
-	cma.muEff = 1 / cma.muEff
+// 	// Set fixed algorithm parameters.
+// 	// Parameter values are from https://arxiv.org/pdf/1604.00772.pdf .
+// 	cma.dim = dim
+// 	cma.pop = cma.Population
+// 	n := float64(dim)
+// 	if cma.pop == 0 {
+// 		cma.pop = 4 + int(3*math.Log(n)) // Note the implicit floor.
+// 	} else if cma.pop < 0 {
+// 		panic("cma-es-chol: negative population size")
+// 	}
+// 	mu := cma.pop / 2
+// 	cma.weights = resize(cma.weights, mu)
+// 	for i := range cma.weights {
+// 		v := math.Log(float64(mu)+0.5) - math.Log(float64(i)+1)
+// 		cma.weights[i] = v
+// 	}
+// 	floats.Scale(1/floats.Sum(cma.weights), cma.weights)
+// 	cma.muEff = 0
+// 	for _, v := range cma.weights {
+// 		cma.muEff += v * v
+// 	}
+// 	cma.muEff = 1 / cma.muEff
 
-	cma.cc = (4 + cma.muEff/n) / (n + 4 + 2*cma.muEff/n)
-	cma.cs = (cma.muEff + 2) / (n + cma.muEff + 5)
-	cma.c1 = 2 / ((n+1.3)*(n+1.3) + cma.muEff)
-	cma.cmu = math.Min(1-cma.c1, 2*(cma.muEff-2+1/cma.muEff)/((n+2)*(n+2)+cma.muEff))
-	cma.ds = 1 + 2*math.Max(0, math.Sqrt((cma.muEff-1)/(n+1))-1) + cma.cs
-	// E[chi] is taken from https://en.wikipedia.org/wiki/CMA-ES (there
-	// listed as E[||N(0,1)||]).
-	cma.eChi = math.Sqrt(n) * (1 - 1.0/(4*n) + 1/(21*n*n))
+// 	cma.cc = (4 + cma.muEff/n) / (n + 4 + 2*cma.muEff/n)
+// 	cma.cs = (cma.muEff + 2) / (n + cma.muEff + 5)
+// 	cma.c1 = 2 / ((n+1.3)*(n+1.3) + cma.muEff)
+// 	cma.cmu = math.Min(1-cma.c1, 2*(cma.muEff-2+1/cma.muEff)/((n+2)*(n+2)+cma.muEff))
+// 	cma.ds = 1 + 2*math.Max(0, math.Sqrt((cma.muEff-1)/(n+1))-1) + cma.cs
+// 	// E[chi] is taken from https://en.wikipedia.org/wiki/CMA-ES (there
+// 	// listed as E[||N(0,1)||]).
+// 	cma.eChi = math.Sqrt(n) * (1 - 1.0/(4*n) + 1/(21*n*n))
 
-	// Allocate memory for function data.
-	cma.xs = mat.NewDense(cma.pop, dim, nil)
-	cma.fs = resize(cma.fs, cma.pop)
+// 	// Allocate memory for function data.
+// 	cma.xs = mat.NewDense(cma.pop, dim, nil)
+// 	cma.fs = resize(cma.fs, cma.pop)
 
-	// Allocate and initialize adaptive parameters.
-	cma.invSigma = 1 / cma.InitStepSize
-	if cma.InitStepSize == 0 {
-		cma.invSigma = 10.0 / 3
-	} else if cma.InitStepSize < 0 {
-		panic("cma-es-chol: negative initial step size")
-	}
-	cma.pc = resize(cma.pc, dim)
-	for i := range cma.pc {
-		cma.pc[i] = 0
-	}
-	cma.ps = resize(cma.ps, dim)
-	for i := range cma.ps {
-		cma.ps[i] = 0
-	}
-	cma.mean = resize(cma.mean, dim) // mean location initialized at the start of Run
+// 	// Allocate and initialize adaptive parameters.
+// 	cma.invSigma = 1 / cma.InitStepSize
+// 	if cma.InitStepSize == 0 {
+// 		cma.invSigma = 10.0 / 3
+// 	} else if cma.InitStepSize < 0 {
+// 		panic("cma-es-chol: negative initial step size")
+// 	}
+// 	cma.pc = resize(cma.pc, dim)
+// 	for i := range cma.pc {
+// 		cma.pc[i] = 0
+// 	}
+// 	cma.ps = resize(cma.ps, dim)
+// 	for i := range cma.ps {
+// 		cma.ps[i] = 0
+// 	}
+// 	cma.mean = resize(cma.mean, dim) // mean location initialized at the start of Run
 
-	if cma.InitCholesky != nil {
-		if cma.InitCholesky.Symmetric() != dim {
-			panic("cma-es-chol: incorrect InitCholesky size")
-		}
-		cma.chol.Clone(cma.InitCholesky)
-	} else {
-		// Set the initial Cholesky to I.
-		b := mat.NewDiagDense(dim, nil)
-		for i := 0; i < dim; i++ {
-			b.SetDiag(i, 1)
-		}
-		var chol mat.Cholesky
-		ok := chol.Factorize(b)
-		if !ok {
-			panic("cma-es-chol: bad cholesky. shouldn't happen")
-		}
-		cma.chol = chol
-	}
+// 	if cma.InitCholesky != nil {
+// 		if cma.InitCholesky.Symmetric() != dim {
+// 			panic("cma-es-chol: incorrect InitCholesky size")
+// 		}
+// 		cma.chol.Clone(cma.InitCholesky)
+// 	} else {
+// 		// Set the initial Cholesky to I.
+// 		b := mat.NewDiagDense(dim, nil)
+// 		for i := 0; i < dim; i++ {
+// 			b.SetDiag(i, 1)
+// 		}
+// 		var chol mat.Cholesky
+// 		ok := chol.Factorize(b)
+// 		if !ok {
+// 			panic("cma-es-chol: bad cholesky. shouldn't happen")
+// 		}
+// 		cma.chol = chol
+// 	}
 
-	cma.bestX = resize(cma.bestX, dim)
-	cma.bestF = math.Inf(1)
+// 	cma.bestX = resize(cma.bestX, dim)
+// 	cma.bestF = math.Inf(1)
 
-	cma.sentIdx = 0
-	cma.receivedIdx = 0
-	cma.operation = nil
-	cma.updateErr = nil
-	t := min(tasks, cma.pop)
-	return t
-}
+// 	cma.sentIdx = 0
+// 	cma.receivedIdx = 0
+// 	cma.operation = nil
+// 	cma.updateErr = nil
+// 	t := min(tasks, cma.pop)
+// 	return t
+// }
 
 func min(a, b int) int {
 	if a < b {
